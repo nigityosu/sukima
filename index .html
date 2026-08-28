@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本棚の隙間を埋めるアプリ - 拡張仕様版</title>
+    <link rel="stylesheet" href="style .css">
+</head>
+<body>
+
+<div class="container">
+    <h1>この隙間を埋める、運命の本たち。</h1>
+
+    <!-- 1. 隙間サイズ入力とARメジャー -->
+    <div class="section">
+        <h2>1. 隙間サイズを入力</h2>
+        <div class="input-group">
+            <input type="number" id="gap-size" placeholder="例: 50 (5cmの場合)" value="50">
+            <span class="unit">mm</span>
+        </div>
+        <button class="btn-secondary" onclick="simulateARMeasure()">📷 ARカメラで隙間を測る (Mock)</button>
+    </div>
+
+    <!-- 2. 検索モードの選択 -->
+    <div class="section">
+        <h2>2. 埋める本を探す方法</h2>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('basic')">種類で指定</div>
+            <div class="tab" onclick="switchTab('api')">テーマで実在の本を探す</div>
+            <div class="tab" onclick="switchTab('scan')">蔵書から探す</div>
+        </div>
+
+        <!-- タブ: 基本フォーマット -->
+        <div id="tab-basic" class="tab-content active">
+            <label>追加したい本の種類（複数選択可）</label>
+            <div class="checkbox-group" id="format-checkboxes"></div>
+        </div>
+
+        <!-- タブ: API連携 -->
+        <div id="tab-api" class="tab-content">
+            <label>テーマ・ジャンル（Google Books API連携）</label>
+            <select id="api-theme">
+                <option value="SF小説">SF小説</option>
+                <option value="ミステリー小説">ミステリー小説</option>
+                <option value="ビジネス書">ビジネス書</option>
+                <option value="プログラミング">プログラミング</option>
+                <option value="料理">料理</option>
+            </select>
+            <p class="note">※APIから実際の本を取得し、ページ数から厚さを推算します。</p>
+        </div>
+
+        <!-- タブ: 蔵書スキャン -->
+        <div id="tab-scan" class="tab-content">
+            <button class="btn-secondary" onclick="simulateBarcodeScan()">📱 バーコードをスキャンする (Mock)</button>
+            <ul id="scanned-books-list" class="scanned-list"></ul>
+            <p class="note">スキャンした手持ちの本の中から、最適な組み合わせを計算します。</p>
+        </div>
+    </div>
+
+    <!-- 実行ボタン -->
+    <button class="btn-primary" onclick="calculateCombinations()">運命の組み合わせを計算する</button>
+
+    <!-- 結果表示エリア -->
+    <div id="loading" style="display: none; text-align: center; padding: 20px;">
+        計算中・API通信中...
+    </div>
+    
+    <div id="result-area"></div>
+    
+    <!-- 画像認識イメージ図 (Canvas) -->
+    <div id="wireframe-area" style="display: none;">
+        <h2>【画像認識イメージ図】収納シミュレーション</h2>
+        <canvas id="bookshelf-canvas" width="500" height="200"></canvas>
+    </div>
+</div>
+
+<script src="script .js"></script>
+</body>
+</html>
