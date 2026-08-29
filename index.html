@@ -18,7 +18,18 @@
             <input type="number" id="gap-size" placeholder="例: 50 (5cmの場合)" value="50">
             <span class="unit">mm</span>
         </div>
-        <button class="btn-secondary" onclick="simulateARMeasure()">📷 ARカメラで隙間を測る (Mock)</button>
+
+        <div class="camera-panel">
+            <button id="camera-button" class="btn-secondary" type="button">📷 カメラで隙間を測る</button>
+            <div id="camera-wrapper" class="camera-wrapper hidden">
+                <video id="camera-video" autoplay playsinline muted></video>
+                <canvas id="camera-canvas" width="320" height="240"></canvas>
+                <div class="camera-actions">
+                    <button id="capture-gap-btn" class="btn-secondary small" type="button">現在の映像で計測</button>
+                    <button id="close-camera-btn" class="btn-secondary small" type="button">閉じる</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 2. 検索モードの選択 -->
@@ -26,9 +37,9 @@
         <h2>2. 埋める本を探す方法</h2>
         
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('basic')">種類で指定</div>
-            <div class="tab" onclick="switchTab('api')">テーマで実在の本を探す</div>
-            <div class="tab" onclick="switchTab('scan')">蔵書から探す</div>
+            <div class="tab active" data-tab="basic" onclick="switchTab('basic')">種類で指定</div>
+            <div class="tab" data-tab="api" onclick="switchTab('api')">テーマで実在の本を探す</div>
+            <div class="tab" data-tab="scan" onclick="switchTab('scan')">蔵書から探す</div>
         </div>
 
         <!-- タブ: 基本フォーマット -->
@@ -39,7 +50,7 @@
 
         <!-- タブ: API連携 -->
         <div id="tab-api" class="tab-content">
-            <label>テーマ・ジャンル（Google Books API連携）</label>
+            <label>テーマ・ジャンル（ローカルAPI / モックAPI）</label>
             <select id="api-theme">
                 <option value="SF小説">SF小説</option>
                 <option value="ミステリー小説">ミステリー小説</option>
@@ -47,14 +58,27 @@
                 <option value="プログラミング">プログラミング</option>
                 <option value="料理">料理</option>
             </select>
-            <p class="note">※APIから実際の本を取得し、ページ数から厚さを推算します。</p>
+            <p id="api-status" class="note">※APIが未接続でも、ローカルのモックデータで本の候補を表示します。</p>
         </div>
 
         <!-- タブ: 蔵書スキャン -->
         <div id="tab-scan" class="tab-content">
-            <button class="btn-secondary" onclick="simulateBarcodeScan()">📱 バーコードをスキャンする (Mock)</button>
+            <div class="custom-book-entry">
+                <div class="custom-book-row">
+                    <select id="custom-book-type">
+                        <option value="雑誌">雑誌</option>
+                        <option value="新書">新書</option>
+                        <option value="コミック">コミック</option>
+                        <option value="文庫">文庫</option>
+                        <option value="単行本">単行本</option>
+                    </select>
+                    <input type="number" id="custom-book-size" min="5" max="200" placeholder="厚さmm">
+                    <button id="add-custom-book-btn" class="btn-secondary small" type="button">追加</button>
+                </div>
+                <p class="note">持っている本を最大3冊まで追加できます。サイズは自分の本の厚さを入力してください。</p>
+            </div>
             <ul id="scanned-books-list" class="scanned-list"></ul>
-            <p class="note">スキャンした手持ちの本の中から、最適な組み合わせを計算します。</p>
+            <p class="note">追加した本を使って、隙間にぴったり収まる組み合わせを計算します。</p>
         </div>
     </div>
 

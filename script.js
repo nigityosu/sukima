@@ -1,6 +1,41 @@
 const bookFormats = { '雑誌': 10, '新書': 12, 'コミック': 14, '文庫': 15, '単行本': 20 };
 let currentTab = 'basic';
 let scannedBooks = []; // 蔵書スキャン用の配列
+let cameraStream = null;
+const MAX_CUSTOM_BOOKS = 3;
+
+const mockBookApiData = {
+    'SF小説': [
+        { type: '文庫', pages: 320 },
+        { type: '新書', pages: 280 },
+        { type: '単行本', pages: 240 },
+        { type: 'コミック', pages: 360 }
+    ],
+    'ミステリー小説': [
+        { type: '文庫', pages: 310 },
+        { type: '新書', pages: 260 },
+        { type: '単行本', pages: 340 },
+        { type: '雑誌', pages: 290 }
+    ],
+    'ビジネス書': [
+        { type: '新書', pages: 220 },
+        { type: '文庫', pages: 250 },
+        { type: '単行本', pages: 210 },
+        { type: 'コミック', pages: 270 }
+    ],
+    'プログラミング': [
+        { type: '単行本', pages: 420 },
+        { type: '文庫', pages: 390 },
+        { type: '新書', pages: 260 },
+        { type: '雑誌', pages: 330 }
+    ],
+    '料理': [
+        { type: '新書', pages: 180 },
+        { type: '文庫', pages: 220 },
+        { type: '単行本', pages: 150 },
+        { type: '雑誌', pages: 200 }
+    ]
+};
 
 // 初期化
 window.onload = () => {
@@ -11,6 +46,11 @@ window.onload = () => {
         label.innerHTML = `<input type="checkbox" value="${format}" checked> ${format}(約${size}mm)`;
         checkboxContainer.appendChild(label);
     }
+
+    document.getElementById('camera-button').addEventListener('click', openCamera);
+    document.getElementById('capture-gap-btn').addEventListener('click', captureGapFromCamera);
+    document.getElementById('close-camera-btn').addEventListener('click', closeCamera);
+    document.getElementById('add-custom-book-btn').addEventListener('click', addCustomBook);
 };
 
 // タブ切り替え
@@ -18,17 +58,142 @@ function switchTab(tabId) {
     currentTab = tabId;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
-    event.target.classList.add('active');
+
+    const activeTab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+    if (activeTab) activeTab.classList.add('active');
     document.getElementById('tab-' + tabId).classList.add('active');
 }
 
-// ARメジャー機能 (Mock)
-function simulateARMeasure() {
-    alert("カメラを起動しています... (シミュレーション)");
-    const randomGap = Math.floor(Math.random() * 50) + 30; // 30〜80mmのランダム
-    document.getElementById('gap-size').value = randomGap;
-    alert(`本棚の隙間を認識しました: ${randomGap}mm`);
+function openCamera() {
+    const wrapper = document.getElementById('camera-wrapper');
+    const video = document.getElementById('camera-video');
+    wrapper.classList.remove('hidden');
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('この環境ではカメラが使えません。代わりに手入力で隙間を設定してください。');
+        return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+        .then(stream => {
+            cameraStream = stream;
+            video.srcObject = stream;
+            video.play();
+        })
+        .catch(() => {
+            alert('カメラの起動に失敗しました。手動入力に切り替えてください。');
+            closeCamera();
+        });
+}
+
+function closeCamera() {
+    const wrapper = document.getElementById('camera-wrapper');
+    const video = document.getElementById('camera-video');
+    wrapper.classList.add('hidden');
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    if (video) {
+        video.srcObject = null;
+    }
+}
+
+function captureGapFromCamera() {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('camera-canvas');
+    const context = canvas.getContext('2d');
+
+    if (!video || !video.videoWidth || !video.videoHeight) {
+        alert('カメラの起動がまだ完了していません。');
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let brightnessSum = 0;
+    let pixelCount = 0;
+
+    for (let i = 0; i < imageData.length; i += 4) {
+        const r = imageData[i];
+        const g = imageData[i + 1];
+        const b = imageData[i + 2];
+        const brightness = (r + g + b) / 3;
+        brightnessSum += brightness;
+        pixelCount += 1;
+    }
+
+    const avgBrightness = brightnessSum / pixelCount;
+    const estimatedGap = Math.max(25, Math.min(150, Math.round((255 - avgBrightness) * 0.9 + 20)));
+    document.getElementById('gap-size').value = estimatedGap;
+    alert(`カメラで本棚の隙間を認識しました: ${estimatedGap}mm`);
+    closeCamera();
+}
+
+function getMockBookApi(theme) {
+    const books = mockBookApiData[theme] || mockBookApiData['SF小説'];
+    return books.map((book) => {
+        const thickness = Math.max(12, Math.round((book.pages || 220) * 0.05 + 2));
+        return { name: `${book.type} (${thickness}mm)`, size: thickness };
+    });
+}
+
+async function fetchLocalBooks(theme) {
+    try {
+        const response = await fetch(`./api/books.json?theme=${encodeURIComponent(theme)}`);
+        if (!response.ok) throw new Error('local api error');
+        const data = await response.json();
+        const items = (data[theme] || data.books || []).map((book) => ({
+            name: `${book.type || '本'} (${Math.max(12, Math.round((book.pages || 220) * 0.05 + 2))}mm)`,
+            size: Math.max(12, Math.round((book.pages || 220) * 0.05 + 2))
+        }));
+
+        if (items.length > 0) return items;
+        throw new Error('no local data');
+    } catch (error) {
+        return null;
+    }
+}
+
+async function fetchBooksFromApi(theme) {
+    const apiStatus = document.getElementById('api-status');
+    const localItems = await fetchLocalBooks(theme);
+    if (localItems && localItems.length > 0) {
+        apiStatus.textContent = '※ローカルAPIから本を取得しました。';
+        return localItems;
+    }
+
+    const apiUrl = 'https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(theme) + '&maxResults=5';
+
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error('APIエラー');
+        }
+        const data = await response.json();
+        const items = (data.items || []).map((item) => {
+            const pages = item.volumeInfo?.pageCount || 220;
+            const thickness = Math.max(12, Math.round(pages * 0.05 + 2));
+            const type = ['雑誌', '新書', 'コミック', '文庫', '単行本'][Math.floor(Math.random() * 5)];
+            return {
+                name: `${type} (${thickness}mm)`,
+                size: thickness
+            };
+        });
+
+        if (items.length > 0) {
+            apiStatus.textContent = '※Google Books APIから本を取得しました。';
+            return items;
+        }
+        throw new Error('データなし');
+    } catch (error) {
+        const fallback = getMockBookApi(theme);
+        apiStatus.textContent = '※APIは未接続のため、ローカルのモックデータを利用しています。';
+        return fallback;
+    }
 }
 
 // 蔵書スキャン機能 (Mock)
@@ -38,17 +203,50 @@ const mockBooks = [
     { title: "昔買った新書", size: 12 },
     { title: "分厚い技術書", size: 30 }
 ];
+function addCustomBook() {
+    const type = document.getElementById('custom-book-type').value;
+    const sizeInput = document.getElementById('custom-book-size');
+    const size = parseInt(sizeInput.value, 10);
+
+    if (scannedBooks.length >= MAX_CUSTOM_BOOKS) {
+        alert(`持っている本は最大${MAX_CUSTOM_BOOKS}冊までです。`);
+        return;
+    }
+
+    if (isNaN(size) || size <= 0) {
+        alert('本の厚さは1以上の数値を入力してください。');
+        return;
+    }
+
+    scannedBooks.push({ name: `${type} (${size}mm)`, size });
+    sizeInput.value = '';
+    updateScannedList();
+}
+
+function removeCustomBook(index) {
+    scannedBooks.splice(index, 1);
+    updateScannedList();
+}
+
 function simulateBarcodeScan() {
+    if (scannedBooks.length >= MAX_CUSTOM_BOOKS) {
+        alert(`持っている本は最大${MAX_CUSTOM_BOOKS}冊までです。`);
+        return;
+    }
+
     alert("バーコードを読み取っています... (シミュレーション)");
     const book = mockBooks[Math.floor(Math.random() * mockBooks.length)];
-    scannedBooks.push({ name: book.title, size: book.size });
+    scannedBooks.push({ name: `${book.title} (${book.size}mm)`, size: book.size });
     updateScannedList();
 }
 function updateScannedList() {
     const list = document.getElementById('scanned-books-list');
     list.innerHTML = '';
-    scannedBooks.forEach(b => {
-        list.innerHTML += `<li>${b.name} (厚さ: ${b.size}mm)</li>`;
+    scannedBooks.forEach((b, index) => {
+        const item = document.createElement('li');
+        item.innerHTML = `<span>${b.name}</span><button type="button" data-index="${index}">削除</button>`;
+        item.querySelector('button').addEventListener('click', () => removeCustomBook(index));
+        list.appendChild(item);
     });
 }
 
@@ -80,22 +278,7 @@ async function calculateCombinations() {
     else if (currentTab === 'api') {
         loading.style.display = 'block';
         const theme = document.getElementById('api-theme').value;
-        try {
-            // Google Books APIからデータ取得
-            const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(theme)}&maxResults=15`);
-            const data = await res.json();
-            items = data.items.map(item => {
-                const title = item.volumeInfo.title.substring(0, 20); // 長すぎるのでカット
-                const pages = item.volumeInfo.pageCount || Math.floor(Math.random() * 200 + 100);
-                // ページ数から厚さを推算（ページあたり0.05mm + 表紙2mm）
-                const thickness = Math.floor(pages * 0.05 + 2);
-                return { name: `『${title}』`, size: thickness };
-            });
-        } catch (e) {
-            alert("API通信に失敗しました。");
-            loading.style.display = 'none';
-            return;
-        }
+        items = await fetchBooksFromApi(theme);
         loading.style.display = 'none';
     }
 

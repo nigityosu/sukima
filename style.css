@@ -117,6 +117,25 @@ select {
     margin-bottom: 10px;
 }
 .note { font-size: 0.8rem; color: #888; }
+.custom-book-entry {
+    margin-bottom: 12px;
+}
+.custom-book-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.custom-book-row select,
+.custom-book-row input {
+    flex: 1;
+    min-width: 0;
+}
+.btn-secondary.small {
+    width: auto;
+    min-width: 70px;
+    margin: 0;
+}
 .scanned-list {
     list-style: none;
     padding: 0;
@@ -129,6 +148,17 @@ select {
     margin-bottom: 5px;
     border-radius: 4px;
     font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+.scanned-list li button {
+    background: transparent;
+    border: 1px solid #d2691e;
+    color: #d2691e;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
 }
 .result-card {
     background: #fffaf0;
